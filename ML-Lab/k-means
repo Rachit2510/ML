@@ -1,0 +1,116 @@
+import pandas as pd
+import matplotlib.pyplot as plt
+import seaborn as sns
+from sklearn.preprocessing import StandardScaler, OneHotEncoder
+from sklearn.compose import ColumnTransformer
+from sklearn.pipeline import Pipeline
+from sklearn.cluster import KMeans
+from sklearn.metrics import silhouette_score
+from sklearn.decomposition import PCA
+
+# Load the dataset
+df = pd.read_csv('/content/customer_purchase_data.csv')
+
+print("First 5 rows of the dataset:")
+display(df.head())
+
+print("\nDataset Information:")
+df.info()
+
+print("\nDescriptive Statistics:")
+display(df.describe())
+# Identify categorical and numerical columns
+numerical_features = df.select_dtypes(include=['int64', 'float64']).columns.tolist()
+categorical_features = df.select_dtypes(include=['object']).columns.tolist()
+
+# Exclude 'CustomerID' if it exists and is not relevant for clustering
+if 'CustomerID' in numerical_features:
+    numerical_features.remove('CustomerID')
+
+print(f"Numerical Features: {numerical_features}")
+print(f"Categorical Features: {categorical_features}")
+
+# Create preprocessing pipelines for numerical and categorical features
+numerical_transformer = StandardScaler()
+categorical_transformer = OneHotEncoder(handle_unknown='ignore')
+
+# Create a column transformer to apply different transformations to different columns
+preprocessor = ColumnTransformer(
+    transformers=[
+        ('num', numerical_transformer, numerical_features),
+        ('cat', categorical_transformer, categorical_features)
+    ])
+
+# Apply preprocessing
+X_preprocessed = preprocessor.fit_transform(df)
+
+print("\nShape of preprocessed data:", X_preprocessed.shape)
+sse = [] # Sum of squared errors (inertia)
+list_k = list(range(1, 11))
+
+for k in list_k:
+    kmeans = KMeans(n_clusters=k, random_state=42, n_init=10)
+    kmeans.fit(X_preprocessed)
+    sse.append(kmeans.inertia_)
+
+# Plotting the Elbow curve
+plt.figure(figsize=(10, 6))
+plt.plot(list_k, sse, '-o')
+plt.xlabel(r'Number of clusters k')
+plt.ylabel('Sum of squared errors (Inertia)')
+plt.title('Elbow Method For Optimal k')
+plt.xticks(list_k)
+plt.grid(True)
+plt.show()
+# Choose the optimal number of clusters based on the elbow plot
+optimal_k = 3 # You might adjust this based on the elbow plot above
+
+kmeans = KMeans(n_clusters=optimal_k, random_state=42, n_init=10)
+cluster_labels = kmeans.fit_predict(X_preprocessed)
+
+# Add the cluster labels to the original DataFrame
+df['Cluster'] = cluster_labels
+
+print(f"Number of data points per cluster (k={optimal_k}):")
+display(df['Cluster'].value_counts().sort_index().to_frame())
+
+print("\nFirst 5 rows with assigned clusters:")
+display(df.head())
+pca = PCA(n_components=2)
+principal_components = pca.fit_transform(X_preprocessed)
+pca_df = pd.DataFrame(data=principal_components, columns=['PC1', 'PC2'])
+
+pca_df['Cluster'] = df['Cluster'] # Add cluster labels to the PCA DataFrame
+
+plt.figure(figsize=(12, 8))
+sns.scatterplot(
+    x='PC1',
+    y='PC2',
+    hue='Cluster',
+    palette='viridis',
+    data=pca_df,
+    s=100, # size of points
+    alpha=0.7,
+    edgecolor='w' # white edge for better distinction
+)
+plt.title('2D PCA of K-Means Clusters')
+plt.xlabel('Principal Component 1')
+plt.ylabel('Principal Component 2')
+plt.grid(True)
+plt.legend(title='Cluster')
+plt.show()
+print("\nMean of numerical features by cluster:")
+display(df.groupby('Cluster')[numerical_features].mean())
+# Select a sample data point (e.g., the first row of the original DataFrame)
+sample_data_point = df.drop(columns=['Cluster']).iloc[[0]]
+
+print("Original sample data point:")
+display(sample_data_point)
+
+# Preprocess the sample data point using the *fitted* preprocessor
+sample_preprocessed = preprocessor.transform(sample_data_point)
+
+# Predict the cluster for the preprocessed sample
+predicted_cluster = kmeans.predict(sample_preprocessed)
+
+print(f"\nPredicted Cluster for the sample data point: {predicted_cluster[0]}")
