@@ -1,0 +1,78 @@
+import pandas as pd
+from sklearn.model_selection import train_test_split
+from sklearn.linear_model import LogisticRegression
+from sklearn.metrics import classification_report, confusion_matrix, accuracy_score
+from sklearn.preprocessing import LabelEncoder
+
+# Load the customer data from the CSV file
+df = pd.read_csv('/content/customer_purchase_data.csv')
+
+# Display the first 5 rows of the DataFrame
+print("First 5 rows of the dataset:")
+display(df.head())
+
+# Display general information about the DataFrame, including data types and non-null values
+print("\nDataFrame Information:")
+df.info()
+# Define features (X) and target (y)
+# We'll drop 'CustomerID' as it's likely just an identifier and not a predictive feature.
+# We assume 'PurchaseStatus' is the target variable for prediction.
+
+X = df.drop(columns=['PurchaseStatus'])
+y = df['PurchaseStatus']
+
+# Identify categorical columns for one-hot encoding
+categorical_cols = X.select_dtypes(include=['object', 'category']).columns
+
+# Apply one-hot encoding to categorical features
+X = pd.get_dummies(X, columns=categorical_cols, drop_first=True)
+
+# Convert target variable to numerical if it's not already (e.g., 'Yes'/'No' to 1/0)
+# Check unique values in y to decide if LabelEncoder is needed
+if y.dtype == 'object':
+    le = LabelEncoder()
+    y = le.fit_transform(y)
+    print(f"Target variable classes: {le.classes_} mapped to {le.transform(le.classes_)}")
+
+# Split the data into training and testing sets
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_state=42)
+
+print("\nData preparation complete.")
+print(f"Shape of X_train: {X_train.shape}")
+print(f"Shape of X_test: {X_test.shape}")
+print(f"Shape of y_train: {y_train.shape}")
+print(f"Shape of y_test: {y_test.shape}")
+# Initialize and train the Logistic Regression model
+model = LogisticRegression(solver='liblinear', random_state=42) # 'liblinear' is good for small datasets and handles L1/L2 regularization
+model.fit(X_train, y_train)
+
+print("Logistic Regression model trained successfully.")
+
+# Make predictions on the test set
+y_pred = model.predict(X_test)
+
+# Evaluate the model
+print("\nModel Evaluation:")
+print("Accuracy:", accuracy_score(y_test, y_pred))
+print("\nConfusion Matrix:\n", confusion_matrix(y_test, y_pred))
+print("\nClassification Report:\n", classification_report(y_test, y_pred))
+# Create a sample data point
+# Ensure the columns match the features used for training (X)
+sample_data = pd.DataFrame({
+    'Age': [35],  # Example age
+    'Gender': [1], # Example gender (assuming 1 for male, 0 for female)
+    'AnnualIncome': [75000.0], # Example annual income
+    'NumberOfPurchases': [10], # Example number of purchases
+    'ProductCategory': [2], # Example product category
+    'TimeSpentOnWebsite': [25.5], # Example time spent on website
+    'LoyaltyProgram': [0], # Example loyalty program status (0 = No, 1 = Yes)
+    'DiscountsAvailed': [3] # Example number of discounts availed
+})
+
+# Make prediction on the sample data
+sample_prediction = model.predict(sample_data)
+
+# Interpret the prediction
+prediction_status = 'Purchased' if sample_prediction[0] == 1 else 'Not Purchased'
+
+print(f"The predicted PurchaseStatus for the sample customer is: {prediction_status}")
