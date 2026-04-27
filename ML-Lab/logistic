@@ -56,6 +56,8 @@ print("\nModel Evaluation:")
 print("Accuracy:", accuracy_score(y_test, y_pred))
 print("\nConfusion Matrix:\n", confusion_matrix(y_test, y_pred))
 print("\nClassification Report:\n", classification_report(y_test, y_pred))
+import pandas as pd
+
 # Create a sample data point
 # Ensure the columns match the features used for training (X)
 sample_data = pd.DataFrame({
@@ -71,8 +73,10 @@ sample_data = pd.DataFrame({
 
 # Make prediction on the sample data
 sample_prediction = model.predict(sample_data)
+sample_prediction_proba = model.predict_proba(sample_data)
 
 # Interpret the prediction
 prediction_status = 'Purchased' if sample_prediction[0] == 1 else 'Not Purchased'
 
+print(f"Probability of Purchase: {sample_prediction_proba[0][1]:.4f}")
 print(f"The predicted PurchaseStatus for the sample customer is: {prediction_status}")
